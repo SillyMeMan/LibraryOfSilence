@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "library_of_silence",
+  "version": "${version}",
+  "name": "Library Of Silence",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/library_of_silence/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "client": [
+      "net.vinh.library_of_silence.client.SilenceLibraryClient"
+    ],
+    "main": [
+      "net.vinh.library_of_silence.SilenceLibrary"
+    ]
+  },
+  "mixins": [
+    "library_of_silence.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
