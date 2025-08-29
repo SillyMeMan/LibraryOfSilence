@@ -6,11 +6,11 @@
 
 ### - An ability registry API, a complete overhaul from the one in Compass
 
-### - Custom damage logic
-
 ### - Custom damage context, now reworked to support custom user-made DamageContexts
 
 ## Returning features:
+
+### - Custom damage logic
 
 ### - ServerScheduledExecutorService, under the new name of ServerTickScheduledExecutorService (which is more literal)
 
