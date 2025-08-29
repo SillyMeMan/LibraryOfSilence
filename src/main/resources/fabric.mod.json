@@ -14,7 +14,7 @@
       "net.vinh.library_of_silence.client.SilenceLibraryClient"
     ],
     "main": [
-      "net.vinh.library_of_silence.SilenceLibrary"
+      "net.vinh.library_of_silence.SilentLibrary"
     ]
   },
   "mixins": [
