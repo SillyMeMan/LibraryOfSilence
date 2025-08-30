@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "library_of_silence",
-  "version": "${version}",
+  "version": "0.0.1",
   "name": "Library Of Silence",
   "description": "",
   "authors": [],
