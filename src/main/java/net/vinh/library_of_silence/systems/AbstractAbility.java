@@ -1,81 +1,96 @@
 package net.vinh.library_of_silence.systems;
 
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.Identifier;
+import net.vinh.library_of_silence.handlers.AbilityHandler;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 public abstract class AbstractAbility {
+    private static final Map<UUID, AbilityState> PLAYER_STATES = new HashMap<>();
 
-    protected boolean isCharging = false;
-    protected int chargeTicks = 0;
-    protected int cooldownTicks = 0;
+    public abstract Identifier getId();
 
-    protected final int MAX_CHARGE_TICKS;
-    protected final int SUCCESS_COOLDOWN_TICKS;
-    protected final int FAIL_COOLDOWN_TICKS;
+    public abstract int getChargeUpTicks();
 
-    public AbstractAbility(int chargeTime, int cooldownIfSuccess, int cooldownIfFailed) {
-        this.MAX_CHARGE_TICKS = chargeTime;
-        this.SUCCESS_COOLDOWN_TICKS = cooldownIfSuccess;
-        this.FAIL_COOLDOWN_TICKS = cooldownIfFailed;
+    public abstract int getCooldownTicks();
+
+    public int getInterruptedCooldownTicks() {
+        return 20 * 60; // default 1 min
     }
 
-    /** Call this method in your server tick event. */
+    protected abstract void execute(ServerPlayerEntity player);
+
+    // --- Logic ---
+
+    public void startCharge(ServerPlayerEntity player) {
+        AbilityState state = new AbilityState();
+        state.charging = true;
+        state.chargeEndTick = player.getServer().getTicks() + getChargeUpTicks();
+        PLAYER_STATES.put(player.getUuid(), state);
+    }
+
     public void tick(ServerPlayerEntity player) {
-        if (cooldownTicks > 0) cooldownTicks--;
+        AbilityState state = PLAYER_STATES.get(player.getUuid());
+        if (state == null) return;
 
-        if (isCharging) {
-            chargeTicks++;
+        if (state.charging && player.getServer().getTicks() >= state.chargeEndTick) {
+            state.charging = false;
+            state.cooldownEndTick = player.getServer().getTicks() + getCooldownTicks();
+            execute(player);
+            AbilityHandler.onAbilityTriggered(getId(), "cast_success");
+        }
 
-            if (chargeTicks >= MAX_CHARGE_TICKS) {
-                if (canCast(player)) {
-                    cast(player);
-                    applySuccessCooldown();
-                } else {
-                    cancel();
-                    applyCancelledlCooldown();
-                }
-            }
+        if (state.charging && player.hurtTime > 0) {
+            state.charging = false;
+            state.cooldownEndTick = player.getServer().getTicks() + getInterruptedCooldownTicks();
+            AbilityHandler.onAbilityTriggered(getId(), "cast_interrupted");
         }
     }
 
-    /** Starts the ability charge-up. */
-    public void startCharging() {
-        if (!isOnCooldown() && !isCharging()) {
-            isCharging = true;
-            chargeTicks = 0;
-        }
-    }
-
-    /** Cancels the current ability charge. */
-    public void cancel() {
-        isCharging = false;
-        chargeTicks = 0;
-    }
-
-    /** Applies success cooldown. */
-    public void applySuccessCooldown() {
-        cooldownTicks = SUCCESS_COOLDOWN_TICKS;
-        isCharging = false;
-        chargeTicks = 0;
-    }
-
-    /** Applies failure cooldown. */
-    public void applyCancelledlCooldown() {
-        cooldownTicks = FAIL_COOLDOWN_TICKS;
-    }
-
-    public boolean isCharging() {
-        return isCharging;
-    }
-
-    public boolean isOnCooldown() {
-        return cooldownTicks > 0;
-    }
-
-    /** Can override this for item conditions, area checks, health gates, etc. */
     public boolean canCast(ServerPlayerEntity player) {
-        return true;
+        AbilityState state = PLAYER_STATES.get(player.getUuid());
+        if (state == null) return true;
+        return player.getServer().getTicks() >= state.cooldownEndTick;
     }
 
-    /** Override to apply actual damage/effects. */
-    public abstract void cast(ServerPlayerEntity player);
+    // --- Persistence ---
+
+    public static void save(ServerPlayerEntity player, NbtCompound tag) {
+        AbilityState state = PLAYER_STATES.get(player.getUuid());
+        if (state != null) tag.put("AbilityState", state.toNbt());
+    }
+
+    public static void load(ServerPlayerEntity player, NbtCompound tag) {
+        if (tag.contains("AbilityState")) {
+            AbilityState state = AbilityState.fromNbt(tag.getCompound("AbilityState"));
+            PLAYER_STATES.put(player.getUuid(), state);
+        }
+    }
+
+    // --- Helper Class ---
+    private static class AbilityState {
+        boolean charging = false;
+        long chargeEndTick = 0;
+        long cooldownEndTick = 0;
+
+        public NbtCompound toNbt() {
+            NbtCompound nbt = new NbtCompound();
+            nbt.putBoolean("charging", charging);
+            nbt.putLong("chargeEnd", chargeEndTick);
+            nbt.putLong("cooldownEnd", cooldownEndTick);
+            return nbt;
+        }
+
+        public static AbilityState fromNbt(NbtCompound nbt) {
+            AbilityState state = new AbilityState();
+            state.charging = nbt.getBoolean("charging");
+            state.chargeEndTick = nbt.getLong("chargeEnd");
+            state.cooldownEndTick = nbt.getLong("cooldownEnd");
+            return state;
+        }
+    }
 }

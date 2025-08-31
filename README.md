@@ -8,6 +8,8 @@
 
 ### - Custom damage context, now reworked to support custom user-made DamageContexts
 
+### - Screenshakes
+
 ## Returning features:
 
 ### - Custom damage logic
